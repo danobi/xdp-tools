@@ -80,6 +80,7 @@ enum cpumap_program_mode {
 	CPUMAP_CPU_L4_PROTO,
 	CPUMAP_CPU_L4_PROTO_FILTER,
 	CPUMAP_CPU_L4_HASH,
+	CPUMAP_CPU_SPI,
 };
 
 struct cpumap_opts {
@@ -94,6 +95,7 @@ struct cpumap_opts {
 	enum cpumap_program_mode program_mode;
 	struct iface iface_in;
 	struct iface redir_iface;
+	__u32 cpus_all;
 };
 
 extern const struct basic_opts defaults_drop;

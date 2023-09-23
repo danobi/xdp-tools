@@ -63,6 +63,7 @@ struct enum_val cpumap_program_modes[] = {
        {"l4-proto", CPUMAP_CPU_L4_PROTO},
        {"l4-filter", CPUMAP_CPU_L4_PROTO_FILTER},
        {"l4-hash", CPUMAP_CPU_L4_HASH},
+       {"spi", CPUMAP_CPU_SPI},
        {NULL, 0}
 };
 
@@ -137,8 +138,11 @@ struct prog_option redirect_cpumap_options[] = {
 	DEFINE_OPTION("cpu", OPT_U32_MULTI, struct cpumap_opts, cpus,
 		      .short_opt = 'c',
 		      .metavar = "<cpu>",
-		      .required = true,
 		      .help = "Insert CPU <cpu> into CPUMAP (can be specified multiple times)"),
+	DEFINE_OPTION("cpu-all", OPT_BOOL, struct cpumap_opts, cpus_all,
+		      .short_opt = 'C',
+		      .metavar = "<cpu>",
+		      .help = "Use alls CPUs in CPUMAP"),
 	DEFINE_OPTION("dev", OPT_IFNAME, struct cpumap_opts, iface_in,
 		      .positional = true,
 		      .metavar = "<ifname>",
@@ -148,7 +152,7 @@ struct prog_option redirect_cpumap_options[] = {
 		      .short_opt = 'p',
 		      .metavar = "<mode>",
 		      .typearg = cpumap_program_modes,
-		      .help = "Redirect to CPUs using <mode>. Default l4-hash."),
+		      .help = "Redirect to CPUs using <mode>. Default disabled."),
 	DEFINE_OPTION("remote-action", OPT_ENUM, struct cpumap_opts, remote_action,
 		      .short_opt = 'r',
 		      .metavar = "<action>",
@@ -180,6 +184,12 @@ struct prog_option redirect_cpumap_options[] = {
 		      .typearg = xdp_modes,
 		      .metavar = "<mode>",
 		      .help = "Load XDP program in <mode>; default native"),
+	DEFINE_OPTION("program-mode", OPT_ENUM, struct cpumap_opts, program_mode,
+		      .short_opt = 'y',
+		      .metavar = "<mode>",
+		      .typearg = cpumap_program_modes,
+		      .help = "Redirect to XFRM CPU using <mode>. Default spi."),
+
 	END_OPTIONS
 };
 

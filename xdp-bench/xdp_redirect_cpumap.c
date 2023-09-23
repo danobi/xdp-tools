@@ -40,7 +40,7 @@ const struct cpumap_opts defaults_redirect_cpumap = {
 	.mode = XDP_MODE_NATIVE,
 	.interval = 2,
 	.qsize = 2048,
-	.program_mode = CPUMAP_CPU_L4_HASH,
+	.program_mode = CPUMAP_CPU_SPI,
 };
 
 static const char *cpumap_prog_names[] = {
@@ -50,6 +50,7 @@ static const char *cpumap_prog_names[] = {
 	"cpumap_l4_proto",
 	"cpumap_l4_filter",
 	"cpumap_l4_hash",
+	"cpumap_xfrm_spi",
 };
 
 DEFINE_SAMPLE_INIT(xdp_redirect_cpumap);
@@ -341,13 +342,29 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 	value.qsize = opt->qsize;
 	value.bpf_prog.fd = fd;
 
-	for (i = 0; i < opt->cpus.num_vals; i++) {
-		if (create_cpu_entry(opt->cpus.vals[i], &value, i, true) < 0) {
-			pr_warn("Cannot proceed, exiting\n");
-			ret = EXIT_FAIL;
-			goto end_detach;
+	if (opt->cpus.num_vals) {
+		for (i = 0; i < opt->cpus.num_vals; i++) {
+			if (create_cpu_entry(opt->cpus.vals[i], &value, i, true) < 0) {
+				pr_warn("Cannot proceed, exiting\n");
+				ret = EXIT_FAIL;
+				goto end_detach;
+			}
 		}
 	}
+
+	if (opt->cpus_all) {
+		int j;
+		for (j = 0; j < n_cpus; j++) {
+			if (create_cpu_entry(j, &value, j, true) < 0) {
+				pr_warn("Cannot proceed, exiting\n");
+				ret = EXIT_FAIL;
+				goto end_detach;
+			}
+		}
+	}
+
+	pr_debug("AA %s %d Max CPUS %d available CPUS %d%s\n", __func__, __LINE__, n_cpus, n_cpus,
+			opt->cpus_all ? " use all cpus" : "");
 
 	ret = sample_run(opt->interval, opt->stress_mode ? stress_cpumap : NULL, &value);
 	if (ret < 0) {
