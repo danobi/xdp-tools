@@ -9,7 +9,6 @@
 #include <xdp/parsing_helpers.h>
 #include "hash_func01.h"
 #include <string.h>
-#include <linux/xfrm.h>
 #include <limits.h>
 
 /* AA FIXME include file to get AF_INET ? */
@@ -216,19 +215,6 @@ int  cpumap_touch_data(struct xdp_md *ctx)
 	}
 	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
 }
-
-typedef int s32;
-
-/* AA FIXME which include file for bpf_xfrm_state_opts decleration ??? */
-struct bpf_xfrm_state_opts {
-	s32 error;
-	s32 netns_id;
-	__u32 mark;
-	xfrm_address_t daddr;
-	__be32 spi;
-	__u8 proto;
-	__u16 family;
-};
 
 __u32 bpf_xdp_get_xfrm_state_cpu(struct xdp_md *ctx, struct bpf_xfrm_state_opts *opts,
 				 __u32 opts__sz) __ksym;

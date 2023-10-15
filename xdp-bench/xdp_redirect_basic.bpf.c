@@ -14,7 +14,6 @@
 #include <xdp/xdp_sample_shared.h>
 #include <xdp/xdp_sample.bpf.h>
 #include <xdp/xdp_sample_common.bpf.h>
-#include <linux/if_ether.h>
 
 const volatile int ifindex_out;
 

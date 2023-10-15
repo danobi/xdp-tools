@@ -15,31 +15,12 @@
 #ifndef __PARSING_HELPERS_H
 #define __PARSING_HELPERS_H
 
-#include <stddef.h>
-#include <linux/if_ether.h>
-#include <linux/if_packet.h>
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/icmp.h>
-#include <linux/icmpv6.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
-#include <linux/in.h>
+#include <bpf/vmlinux.h>
 #include <bpf/bpf_endian.h>
 
 /* Header cursor to keep track of current parsing position */
 struct hdr_cursor {
 	void *pos;
-};
-
-/*
- *	struct vlan_hdr - vlan header
- *	@h_vlan_TCI: priority and VLAN ID
- *	@h_vlan_encapsulated_proto: packet type ID or len
- */
-struct vlan_hdr {
-	__be16	h_vlan_TCI;
-	__be16	h_vlan_encapsulated_proto;
 };
 
 /*
@@ -61,6 +42,16 @@ struct icmphdr_common {
 #ifndef IPV6_EXT_MAX_CHAIN
 #define IPV6_EXT_MAX_CHAIN 6
 #endif
+
+#define ETH_P_8021Q  0x8100          /* 802.1Q VLAN Extended Header  */
+#define ETH_P_8021AD 0x88A8          /* 802.1ad Service VLAN         */
+#define IPPROTO_HOPOPTS             0       /* IPv6 hop-by-hop options      */
+#define IPPROTO_MH          135     /* IPv6 mobility header         */
+#define IPPROTO_DSTOPTS             60      /* IPv6 destination options     */
+#define IPPROTO_ROUTING             43      /* IPv6 routing header          */
+#define ETH_P_IP     0x0800          /* Internet Protocol packet     */
+#define ETH_P_IPV6   0x86DD          /* IPv6 over bluebook           */
+#define IPPROTO_FRAGMENT    44      /* IPv6 fragmentation header    */
 
 
 static __always_inline int proto_is_vlan(__u16 h_proto)

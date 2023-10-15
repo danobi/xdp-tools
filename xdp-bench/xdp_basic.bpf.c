@@ -11,7 +11,6 @@
  * General Public License for more details.
  */
 #include <bpf/vmlinux.h>
-#include <linux/bpf.h>
 #include <xdp/xdp_sample_shared.h>
 #include <xdp/xdp_sample.bpf.h>
 #include <xdp/xdp_sample_common.bpf.h>
