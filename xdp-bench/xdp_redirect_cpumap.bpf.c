@@ -216,8 +216,9 @@ int  cpumap_touch_data(struct xdp_md *ctx)
 	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
 }
 
-__u32 bpf_xdp_get_xfrm_state_cpu(struct xdp_md *ctx, struct bpf_xfrm_state_opts *opts,
-				 __u32 opts__sz) __ksym;
+struct xfrm_state *
+bpf_xdp_get_xfrm_state(struct xdp_md *ctx, struct bpf_xfrm_state_opts *opts,
+                      u32 opts__sz) __ksym;
 extern int bpf_dynptr_from_xdp(struct xdp_md *xdp, __u64 flags,
 			       struct bpf_dynptr *ptr__uninit) __ksym;
 extern void *bpf_dynptr_slice(const struct bpf_dynptr *ptr, __u32 offset,
@@ -238,6 +239,7 @@ int cpumap_xfrm_spi(struct xdp_md *ctx)
 	struct bpf_xfrm_state_opts opts = {};
 	__u8 esph_buf[8] = {};
 	__u8 iph_buf[20] = {};
+	struct xfrm_state *x;
 	struct iphdr *iph;
 	struct ip_esp_hdr *esph;
 
@@ -274,7 +276,11 @@ int cpumap_xfrm_spi(struct xdp_md *ctx)
 	opts.proto = IPPROTO_ESP;
 	opts.family = AF_INET;
 
-	cpu_idx = bpf_xdp_get_xfrm_state_cpu(ctx, &opts, sizeof(opts));
+	x = bpf_xdp_get_xfrm_state(ctx, &opts, sizeof(opts));
+	if (!x)
+		return XDP_PASS;
+
+	cpu_idx = x->pcpu_num;
 	if (cpu_idx == UINT_MAX)
 		return XDP_PASS;
 
