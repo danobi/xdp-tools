@@ -243,10 +243,6 @@ int cpumap_xfrm_spi(struct xdp_md *ctx)
 	struct iphdr *iph;
 	struct ip_esp_hdr *esph;
 
-	cpu_max = bpf_map_lookup_elem(&cpus_count, &key0);
-	if (!cpu_max)
-		return XDP_ABORTED;
-
 	if (bpf_dynptr_from_xdp(ctx, 0, &ptr))
 		return XDP_PASS;
 
