@@ -4,6 +4,7 @@
 
 #include <time.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <getopt.h>
 #include <locale.h>
@@ -184,10 +185,88 @@ static int set_cpumap_prog(struct xdp_redirect_cpumap *skel,
 	return bpf_program__fd(skel->progs.cpumap_redirect);
 }
 
+static int parse_cpu_mask_str(const char *s, bool **mask, int *mask_sz)
+{
+        int err = 0, n, len, start, end = -1;
+        bool *tmp;
+
+        *mask = NULL;
+        *mask_sz = 0;
+
+        /* Each sub string separated by ',' has format \d+-\d+ or \d+ */
+        while (*s) {
+                if (*s == ',' || *s == '\n') {
+                        s++;
+                        continue;
+                }
+                n = sscanf(s, "%d%n-%d%n", &start, &len, &end, &len);
+                if (n <= 0 || n > 2) {
+                        pr_warn("Failed to get CPU range %s: %d\n", s, n);
+                        err = -EINVAL;
+                        goto cleanup;
+                } else if (n == 1) {
+                        end = start;
+                }
+                if (start < 0 || start > end) {
+                        pr_warn("Invalid CPU range [%d,%d] in %s\n",
+                                start, end, s);
+                        err = -EINVAL;
+                        goto cleanup;
+                }
+                tmp = realloc(*mask, end + 1);
+                if (!tmp) {
+                        err = -ENOMEM;
+                        goto cleanup;
+                }
+                *mask = tmp;
+                memset(tmp + *mask_sz, 0, start - *mask_sz);
+                memset(tmp + start, 1, end - start + 1);
+                *mask_sz = end + 1;
+                s += len;
+        }
+        if (!*mask_sz) {
+                pr_warn("Empty CPU range\n");
+                return -EINVAL;
+        }
+        return 0;
+cleanup:
+        free(*mask);
+        *mask = NULL;
+        return err;
+}
+
+int parse_cpu_mask_file(const char *fcpu, bool **mask, int *mask_sz)
+{
+        int fd, err = 0;
+        char buf[128];
+        size_t len;
+
+        fd = open(fcpu, O_RDONLY | O_CLOEXEC);
+        if (fd < 0) {
+                err = -errno;
+                pr_warn("Failed to open cpu mask file %s: %d\n", fcpu, err);
+                return err;
+        }
+        len = read(fd, buf, sizeof(buf));
+        close(fd);
+        if (len <= 0) {
+                err = len ? -errno : -EINVAL;
+                pr_warn("Failed to read cpu mask from %s: %d\n", fcpu, err);
+                return err;
+        }
+        if (len >= sizeof(buf)) {
+                pr_warn("CPU mask is too big in file %s\n", fcpu);
+                return -E2BIG;
+        }
+        buf[len] = '\0';
+
+        return parse_cpu_mask_str(buf, mask, mask_sz);
+}
+
 int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 {
+        const char *online_cpus_file = "/sys/devices/system/cpu/online";
 	const struct cpumap_opts *opt = cfg;
-
 	DECLARE_LIBBPF_OPTS(xdp_program_opts, opts);
 	struct xdp_program *xdp_prog = NULL;
 	struct xdp_redirect_cpumap *skel;
@@ -196,6 +275,8 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 	struct bpf_cpumap_val value;
 	__u32 infosz = sizeof(info);
 	int ret = EXIT_FAIL_OPTION;
+        int online_cpus_sz;
+        bool *online_cpus;
 	int n_cpus, fd;
 	size_t i;
 
@@ -207,7 +288,6 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 
 	if (opt->redir_iface.ifindex)
 		mask |= SAMPLE_DEVMAP_XMIT_CNT_MULTI;
-
 
 	n_cpus = libbpf_num_possible_cpus();
 
@@ -353,8 +433,22 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 	}
 
 	if (opt->cpus_all) {
-		int j;
+		int j, err;
+
+                err = parse_cpu_mask_str(online_cpus_file, &online_cpus, &online_cpus_sz);
+                if (err) {
+                        pr_warn("Failed to get online CPUs, err=%d\n", err);
+                        ret = EXIT_FAIL;
+                        goto end;
+                } else if (online_cpus_sz != n_cpus) {
+                        pr_warn("Total CPU count changed\n");
+                        ret = EXIT_FAIL;
+                        goto end;
+                }
+
 		for (j = 0; j < n_cpus; j++) {
+                        if (!online_cpus[j])
+                                continue;
 			if (create_cpu_entry(j, &value, j, true) < 0) {
 				pr_warn("Cannot proceed, exiting\n");
 				ret = EXIT_FAIL;
