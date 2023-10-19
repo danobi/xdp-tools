@@ -17,6 +17,12 @@
 #define AF_INET6 10
 #endif
 
+struct eth_hdr {
+        unsigned char eth_dest[6];
+        unsigned char eth_source[6];
+        unsigned short eth_proto;
+};
+
 /* Special map type that can XDP_REDIRECT frames to another CPU */
 struct {
 	__uint(type, BPF_MAP_TYPE_CPUMAP);
@@ -237,13 +243,24 @@ int cpumap_xfrm_spi(struct xdp_md *ctx)
 	__u32 *cpu_max;
 	__u32 key0 = 0;
 	struct bpf_xfrm_state_opts opts = {};
-	__u8 esph_buf[8] = {};
+	__u8 ethh_buf[sizeof(struct eth_hdr)];
 	__u8 iph_buf[20] = {};
+	__u8 esph_buf[8] = {};
+	__u8 udph_buf[8] = {};
 	struct xfrm_state *x;
+	struct eth_hdr *eth;
 	struct iphdr *iph;
 	struct ip_esp_hdr *esph;
+	struct udphdr *udph;
 
 	if (bpf_dynptr_from_xdp(ctx, 0, &ptr))
+		return XDP_PASS;
+
+	eth = bpf_dynptr_slice(&ptr, 0, ethh_buf, sizeof(ethh_buf));
+	if (!eth)
+		return XDP_PASS;
+
+	if (eth->eth_proto != bpf_htons(ETH_P_IP))
 		return XDP_PASS;
 
 	rec = bpf_map_lookup_elem(&rx_cnt, &key);
@@ -258,19 +275,35 @@ int cpumap_xfrm_spi(struct xdp_md *ctx)
 
 	off = sizeof(struct ethhdr);
 	iph = bpf_dynptr_slice(&ptr, off, iph_buf, sizeof(iph_buf));
-	if (!iph || iph->protocol != IPPROTO_ESP)
-		return XDP_PASS; /* Just skip */
+	if (!iph)
+		return XDP_PASS; /* accpet ESP and UDP rest skip */
+
+	if (iph->protocol != IPPROTO_ESP && iph->protocol != IPPROTO_UDP)
+		return XDP_PASS; /* accpet ESP and UDP skip reset*/
 
 	off += sizeof(struct iphdr);
+
+	if (iph->protocol == IPPROTO_UDP) {
+		/* wild guess this is ESP. Normal code look up socket to decide ESP */
+		udph = bpf_dynptr_slice(&ptr, off, udph_buf, sizeof(udph_buf));
+		if (!udph)
+			return XDP_PASS; /* invalid ESP header skip */
+
+		if (bpf_ntohs(udph->dest) != 4500 )
+			return XDP_PASS; /* accpet UDP dport 4500, rest skip */
+
+		off += sizeof(struct udphdr);
+	}
+
 	esph = bpf_dynptr_slice(&ptr, off, esph_buf, sizeof(esph_buf));
 	if (!esph)
-		return XDP_PASS; /* Just skip */
+		return XDP_PASS; /* invalid ESP header skip */
 
+	opts.spi = esph->spi;
 	opts.netns_id = BPF_F_CURRENT_NETNS;
 	opts.daddr.a4 = iph->daddr;
-	opts.spi = esph->spi;
-	opts.proto = IPPROTO_ESP;
 	opts.family = AF_INET;
+	opts.proto = IPPROTO_ESP;
 
 	x = bpf_xdp_get_xfrm_state(ctx, &opts, sizeof(opts));
 	if (!x)
