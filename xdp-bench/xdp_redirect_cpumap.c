@@ -440,13 +440,9 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
                         pr_warn("Failed to get online CPUs, err=%d\n", err);
                         ret = EXIT_FAIL;
                         goto end;
-                } else if (online_cpus_sz != n_cpus) {
-                        pr_warn("Total CPU count changed\n");
-                        ret = EXIT_FAIL;
-                        goto end;
                 }
 
-		for (j = 0; j < n_cpus; j++) {
+		for (j = 0; j < min(n_cpus, online_cpus_sz); j++) {
                         if (!online_cpus[j])
                                 continue;
 			if (create_cpu_entry(j, &value, j, true) < 0) {
