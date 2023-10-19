@@ -435,7 +435,7 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 	if (opt->cpus_all) {
 		int j, err;
 
-                err = parse_cpu_mask_str(online_cpus_file, &online_cpus, &online_cpus_sz);
+                err = parse_cpu_mask_file(online_cpus_file, &online_cpus, &online_cpus_sz);
                 if (err) {
                         pr_warn("Failed to get online CPUs, err=%d\n", err);
                         ret = EXIT_FAIL;
