@@ -716,16 +716,20 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 	__u32 key0 = 0;
 
 	rec = bpf_map_lookup_elem(&rx_cnt, &key);
-	if (!rec)
+	if (!rec) {
+		bpf_printk("XXX rec lookup\n");
 		return XDP_PASS;
+	}
 	NO_TEAR_INC(rec->processed);
 
 	cpu_max = bpf_map_lookup_elem(&cpus_count, &key0);
 	if (!cpu_max)
 		return XDP_ABORTED;
 
-	if (!(parse_eth(eth, data_end, &eth_proto, &l3_offset)))
+	if (!(parse_eth(eth, data_end, &eth_proto, &l3_offset))) {
+		bpf_printk("XXX parse_eth\n");
 		return XDP_PASS; /* Just skip */
+	}
 
 	/* Extract L4 source port */
 	switch (eth_proto) {
@@ -739,6 +743,7 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 			src_port = get_src_port_ipv4_udp(ctx, l3_offset);
 			break;
 		default:
+			bpf_printk("XXX ipv4 proto err\n");
 			src_port = 0;
 		}
 		break;
@@ -752,6 +757,7 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 			src_port = get_src_port_ipv6_udp(ctx, l3_offset);
 			break;
 		default:
+			bpf_printk("XXX ipv6 proto err\n");
 			src_port = 0;
 		}
 		break;
