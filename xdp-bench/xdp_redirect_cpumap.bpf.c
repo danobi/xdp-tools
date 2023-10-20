@@ -796,6 +796,7 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 	if (!src_port)
 		bpf_printk("XXX src_port == 0\n");
 	cpu_idx = src_port % *cpu_max;
+	bpf_printk("cpu_idx = %u = %u % %u\n", cpu_idx, src_port, *cpu_max);
 
 	cpu_lookup = bpf_map_lookup_elem(&cpus_available, &cpu_idx);
 	if (!cpu_lookup) {
