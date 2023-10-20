@@ -52,6 +52,7 @@ static const char *cpumap_prog_names[] = {
 	"cpumap_l4_filter",
 	"cpumap_l4_hash",
 	"cpumap_xfrm_spi",
+	"cpumap_l4_sport",
 };
 
 DEFINE_SAMPLE_INIT(xdp_redirect_cpumap);
