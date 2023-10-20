@@ -275,7 +275,7 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 	struct bpf_cpumap_val value;
 	__u32 infosz = sizeof(info);
 	int ret = EXIT_FAIL_OPTION;
-        int n_online_cpus = 0;
+        __u32 n_online_cpus = 0;
         int online_cpus_sz;
         bool *online_cpus;
 	int n_cpus, fd;
@@ -448,7 +448,7 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 		for (j = 0; j < min(n_cpus, online_cpus_sz); j++) {
                         if (!online_cpus[j])
                                 continue;
-			if (create_cpu_entry(j, &value, j, true) < 0) {
+			if (create_cpu_entry(j, &value, n_online_cpus, true) < 0) {
 				pr_warn("Cannot proceed, exiting\n");
 				ret = EXIT_FAIL;
 				goto end_detach;
@@ -457,7 +457,7 @@ int do_redirect_cpumap(const void *cfg, __unused const char *pin_root_path)
 		}
 	}
 
-	pr_debug("AA %s %d Max CPUS %d available CPUS %d%s\n", __func__, __LINE__, n_online_cpus, n_cpus,
+	pr_debug("AA %s %d Max CPUS %u available CPUS %d%s\n", __func__, __LINE__, n_online_cpus, n_cpus,
 			opt->cpus_all ? " use all cpus" : "");
 
 	ret = sample_run(opt->interval, opt->stress_mode ? stress_cpumap : NULL, &value);
