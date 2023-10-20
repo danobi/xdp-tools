@@ -714,6 +714,7 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 	__u16 src_port;
 	__u32 *cpu_max;
 	__u32 key0 = 0;
+	u64 err;
 
 	rec = bpf_map_lookup_elem(&rx_cnt, &key);
 	if (!rec) {
@@ -723,8 +724,10 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 	NO_TEAR_INC(rec->processed);
 
 	cpu_max = bpf_map_lookup_elem(&cpus_count, &key0);
-	if (!cpu_max)
+	if (!cpu_max) {
+		bpf_printk("XXX cpus_count lookup\n");
 		return XDP_ABORTED;
+	}
 
 	if (!(parse_eth(eth, data_end, &eth_proto, &l3_offset))) {
 		bpf_printk("XXX parse_eth\n");
@@ -765,18 +768,26 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 		src_port = 0;
 	}
 
+	if (!src_port)
+		bpf_printk("XXX src_port == 0\n");
 	cpu_idx = src_port % *cpu_max;
 
 	cpu_lookup = bpf_map_lookup_elem(&cpus_available, &cpu_idx);
-	if (!cpu_lookup)
+	if (!cpu_lookup) {
+		bpf_printk("XXX cpus_aviailable lookup\n");
 		return XDP_ABORTED;
+	}
 	cpu_dest = *cpu_lookup;
 
 	if (cpu_dest >= nr_cpus) {
 		NO_TEAR_INC(rec->issue);
+		bpf_printk("XXX nr_cpus comparison\n");
 		return XDP_ABORTED;
 	}
-	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
+	err = bpf_redirect_map(&cpu_map, cpu_dest, 0);
+	if (err != XDP_REDIRECT)
+		bpf_printk("XXX bpf_redirect_map\n");
+	return err;
 }
 
 SEC("xdp/cpumap")
