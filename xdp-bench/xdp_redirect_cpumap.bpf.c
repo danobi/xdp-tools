@@ -117,14 +117,20 @@ __u16 get_src_port_ipv4_udp(struct xdp_md *ctx, __u64 nh_off)
 	struct iphdr *iph = data + nh_off;
 	struct udphdr *udph;
 
-	if (iph + 1 > data_end)
+	if (iph + 1 > data_end) {
+		bpf_printk("XXX: ipv4 udp (1)\n");
 		return 0;
-	if (!(iph->protocol == IPPROTO_UDP))
+	}
+	if (!(iph->protocol == IPPROTO_UDP)) {
+		bpf_printk("XXX: ipv4 udp (2)\n");
 		return 0;
+	}
 
 	udph = (void *)(iph + 1);
-	if (udph + 1 > data_end)
+	if (udph + 1 > data_end) {
+		bpf_printk("XXX: ipv4 udp (3)\n");
 		return 0;
+	}
 
 	return bpf_ntohs(udph->source);
 }
@@ -157,14 +163,20 @@ __u16 get_src_port_ipv6_udp(struct xdp_md *ctx, __u64 nh_off)
 	struct ipv6hdr *ip6h = data + nh_off;
 	struct udphdr *udph;
 
-	if (ip6h + 1 > data_end)
+	if (ip6h + 1 > data_end) {
+		bpf_printk("XXX: ipv6 udp (1)\n");
 		return 0;
-	if (!(ip6h->nexthdr == IPPROTO_UDP))
+	}
+	if (!(ip6h->nexthdr == IPPROTO_UDP)) {
+		bpf_printk("XXX: ipv6 udp (2)\n");
 		return 0;
+	}
 
 	udph = (void *)(ip6h + 1);
-	if (udph + 1 > data_end)
+	if (udph + 1 > data_end) {
+		bpf_printk("XXX: ipv6 udp (3)\n");
 		return 0;
+	}
 
 	return bpf_ntohs(udph->source);
 }
@@ -177,14 +189,20 @@ __u16 get_src_port_ipv4_tcp(struct xdp_md *ctx, __u64 nh_off)
 	struct iphdr *iph = data + nh_off;
 	struct tcphdr *tcph;
 
-	if (iph + 1 > data_end)
+	if (iph + 1 > data_end) {
+		bpf_printk("XXX: ipv4 tcp (1)\n");
 		return 0;
-	if (!(iph->protocol == IPPROTO_TCP))
+	}
+	if (!(iph->protocol == IPPROTO_TCP)) {
+		bpf_printk("XXX: ipv4 tcp (2)\n");
 		return 0;
+	}
 
 	tcph = (void *)(iph + 1);
-	if (tcph + 1 > data_end)
+	if (tcph + 1 > data_end) {
+		bpf_printk("XXX: ipv4 tcp (1)\n");
 		return 0;
+	}
 
 	return bpf_ntohs(tcph->source);
 }
@@ -197,14 +215,20 @@ __u16 get_src_port_ipv6_tcp(struct xdp_md *ctx, __u64 nh_off)
 	struct ipv6hdr *ip6h = data + nh_off;
 	struct tcphdr *tcph;
 
-	if (ip6h + 1 > data_end)
+	if (ip6h + 1 > data_end) {
+		bpf_printk("XXX: ipv6 tcp (1)\n");
 		return 0;
-	if (!(ip6h->nexthdr == IPPROTO_UDP))
+	}
+	if (!(ip6h->nexthdr == IPPROTO_UDP)) {
+		bpf_printk("XXX: ipv6 tcp (2)\n");
 		return 0;
+	}
 
 	tcph = (void *)(ip6h + 1);
-	if (tcph + 1 > data_end)
+	if (tcph + 1 > data_end) {
+		bpf_printk("XXX: ipv6 tcp (3)\n");
 		return 0;
+	}
 
 	return bpf_ntohs(tcph->source);
 }
@@ -765,6 +789,7 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 		}
 		break;
 	default:
+		bpf_printk("XXX not ipv4 or ipv6\n");
 		src_port = 0;
 	}
 
