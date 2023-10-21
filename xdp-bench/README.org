@@ -357,6 +357,7 @@ redirected to different CPUs. The following options are available:
  l4-filter		- Like l4-proto, but drop UDP packets with destination port 9 (used by pktgen)
  l4-hash		- Use source and destination IP hashing to pick target CPU
  l4-sport		- Use modulo of source port to pick target CPU
+ l4-dport		- Use modulo of destination port to pick target CPU
  spi    		- Use XFRM pcpu state to pick target CPU
 #+end_src
 

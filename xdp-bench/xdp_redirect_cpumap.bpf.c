@@ -110,7 +110,7 @@ bool parse_eth(struct ethhdr *eth, void *data_end,
 }
 
 static __always_inline
-__u16 get_src_port_ipv4_udp(struct xdp_md *ctx, __u64 nh_off)
+__u16 get_port_ipv4_udp(struct xdp_md *ctx, __u64 nh_off, bool src)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -126,31 +126,14 @@ __u16 get_src_port_ipv4_udp(struct xdp_md *ctx, __u64 nh_off)
 	if (udph + 1 > data_end)
 		return 0;
 
-	return bpf_ntohs(udph->source);
+	if (src)
+		return bpf_ntohs(udph->source);
+	else
+		return bpf_ntohs(udph->dest);
 }
 
 static __always_inline
-__u16 get_dest_port_ipv4_udp(struct xdp_md *ctx, __u64 nh_off)
-{
-	void *data_end = (void *)(long)ctx->data_end;
-	void *data     = (void *)(long)ctx->data;
-	struct iphdr *iph = data + nh_off;
-	struct udphdr *udph;
-
-	if (iph + 1 > data_end)
-		return 0;
-	if (!(iph->protocol == IPPROTO_UDP))
-		return 0;
-
-	udph = (void *)(iph + 1);
-	if (udph + 1 > data_end)
-		return 0;
-
-	return bpf_ntohs(udph->dest);
-}
-
-static __always_inline
-__u16 get_src_port_ipv6_udp(struct xdp_md *ctx, __u64 nh_off)
+__u16 get_port_ipv6_udp(struct xdp_md *ctx, __u64 nh_off, bool src)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -166,11 +149,14 @@ __u16 get_src_port_ipv6_udp(struct xdp_md *ctx, __u64 nh_off)
 	if (udph + 1 > data_end)
 		return 0;
 
-	return bpf_ntohs(udph->source);
+	if (src)
+		return bpf_ntohs(udph->source);
+	else
+		return bpf_ntohs(udph->dest);
 }
 
 static __always_inline
-__u16 get_src_port_ipv4_tcp(struct xdp_md *ctx, __u64 nh_off)
+__u16 get_port_ipv4_tcp(struct xdp_md *ctx, __u64 nh_off, bool src)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -186,11 +172,14 @@ __u16 get_src_port_ipv4_tcp(struct xdp_md *ctx, __u64 nh_off)
 	if (tcph + 1 > data_end)
 		return 0;
 
-	return bpf_ntohs(tcph->source);
+	if (src)
+		return bpf_ntohs(tcph->source);
+	else
+		return bpf_ntohs(tcph->dest);
 }
 
 static __always_inline
-__u16 get_src_port_ipv6_tcp(struct xdp_md *ctx, __u64 nh_off)
+__u16 get_port_ipv6_tcp(struct xdp_md *ctx, __u64 nh_off, bool src)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -206,7 +195,10 @@ __u16 get_src_port_ipv6_tcp(struct xdp_md *ctx, __u64 nh_off)
 	if (tcph + 1 > data_end)
 		return 0;
 
-	return bpf_ntohs(tcph->source);
+	if (src)
+		return bpf_ntohs(tcph->source);
+	else
+		return bpf_ntohs(tcph->dest);
 }
 
 
@@ -574,7 +566,7 @@ int  cpumap_l4_filter(struct xdp_md *ctx)
 	case IPPROTO_UDP:
 		cpu_idx = 1;
 		/* DDoS filter UDP port 9 (pktgen) */
-		dest_port = get_dest_port_ipv4_udp(ctx, l3_offset);
+		dest_port = get_port_ipv4_udp(ctx, l3_offset, false);
 		if (dest_port == 9) {
 			NO_TEAR_INC(rec->dropped);
 			return XDP_DROP;
@@ -697,8 +689,8 @@ int  cpumap_l4_hash(struct xdp_md *ctx)
 	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
 }
 
-SEC("xdp")
-int  cpumap_l4_sport(struct xdp_md *ctx)
+static __always_inline
+int cpumap_l4_port(struct xdp_md *ctx, bool src)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -733,10 +725,10 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 		ip_proto = get_proto_ipv4(ctx, l3_offset);
 		switch (ip_proto) {
 		case IPPROTO_TCP:
-			src_port = get_src_port_ipv4_tcp(ctx, l3_offset);
+			src_port = get_port_ipv4_tcp(ctx, l3_offset, src);
 			break;
 		case IPPROTO_UDP:
-			src_port = get_src_port_ipv4_udp(ctx, l3_offset);
+			src_port = get_port_ipv4_udp(ctx, l3_offset, src);
 			break;
 		default:
 			src_port = 0;
@@ -746,10 +738,10 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 		ip_proto = get_proto_ipv6(ctx, l3_offset);
 		switch (ip_proto) {
 		case IPPROTO_TCP:
-			src_port = get_src_port_ipv6_tcp(ctx, l3_offset);
+			src_port = get_port_ipv6_tcp(ctx, l3_offset, src);
 			break;
 		case IPPROTO_UDP:
-			src_port = get_src_port_ipv6_udp(ctx, l3_offset);
+			src_port = get_port_ipv6_udp(ctx, l3_offset, src);
 			break;
 		default:
 			src_port = 0;
@@ -771,6 +763,18 @@ int  cpumap_l4_sport(struct xdp_md *ctx)
 		return XDP_ABORTED;
 	}
 	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
+}
+
+SEC("xdp")
+int cpumap_l4_sport(struct xdp_md *ctx)
+{
+	return cpumap_l4_port(ctx, true);
+}
+
+SEC("xdp")
+int cpumap_l4_dport(struct xdp_md *ctx)
+{
+	return cpumap_l4_port(ctx, false);
 }
 
 SEC("xdp/cpumap")
