@@ -765,13 +765,13 @@ int cpumap_l4_port(struct xdp_md *ctx, bool src)
 	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
 }
 
-SEC("xdp")
+SEC("xdp.frags")
 int cpumap_l4_sport(struct xdp_md *ctx)
 {
 	return cpumap_l4_port(ctx, true);
 }
 
-SEC("xdp")
+SEC("xdp.frags")
 int cpumap_l4_dport(struct xdp_md *ctx)
 {
 	return cpumap_l4_port(ctx, false);
