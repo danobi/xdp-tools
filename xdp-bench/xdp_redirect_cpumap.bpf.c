@@ -298,6 +298,7 @@ int  cpumap_touch_data(struct xdp_md *ctx)
 struct xfrm_state *
 bpf_xdp_get_xfrm_state(struct xdp_md *ctx, struct bpf_xfrm_state_opts *opts,
                       u32 opts__sz) __ksym;
+void bpf_xdp_xfrm_state_release(struct xfrm_state *) __ksym;
 extern int bpf_dynptr_from_xdp(struct xdp_md *xdp, __u64 flags,
 			       struct bpf_dynptr *ptr__uninit) __ksym;
 extern void *bpf_dynptr_slice(const struct bpf_dynptr *ptr, __u32 offset,
@@ -383,6 +384,8 @@ int cpumap_xfrm_spi(struct xdp_md *ctx)
 		return XDP_PASS;
 
 	cpu_idx = x->pcpu_num;
+	bpf_xdp_xfrm_state_release(x);
+
 	if (cpu_idx == UINT_MAX)
 		return XDP_PASS;
 
